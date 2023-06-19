@@ -123,6 +123,11 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => {
   res.redirect(`https://open.sonolus.com/${req.hostname}`);
 });
+app.get("/levels/:name", (req, res) => {
+  res.redirect(
+    `https://open.sonolus.com/${req.hostname}/levels/${req.params.name}`
+  );
+});
 
 app.get("/sonolus/info", (req, res) => {
   res.send({
