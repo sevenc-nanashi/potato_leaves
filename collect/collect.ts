@@ -111,7 +111,6 @@ const collector = async () => {
   const { data } = await axios.get(
     "https://fp.sevenc7c.com/sonolus/levels/list"
   );
-  await db.run("DELETE FROM levels");
   for (let pageNumber = 0; pageNumber < data.pageCount; pageNumber++) {
     console.log(`Page ${pageNumber + 1}/${data.pageCount}`);
     const { data: page } = await axios.get(

@@ -121,14 +121,32 @@ app.use((req, res, next) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.redirect(`https://open.sonolus.com/${req.hostname}`);
 });
 
 app.get("/sonolus/info", (req, res) => {
   res.send({
     title: "Potato Leaves",
     levels: {
-      items: [],
+      items: [
+        {
+          name: "ptlv-sys",
+          title: "Welcome to Potato Leaves!",
+          artists: "Tap [ More ] to browse levels.",
+
+          author: "System",
+          version: 1,
+          rating: 0,
+          engine: { name: "ptlv-dummy", version: 5, title: "(Message)" },
+          cover: {
+            type: "LevelCover",
+            url: "https://cc.sevenc7c.com/assets/info.png",
+            hash: "1fbbc7e736f7f26bc9261df85f020b3f8f336bd1",
+          },
+          bgm: { type: "LevelBgm", url: "" },
+          data: { type: "LevelData", url: "" },
+        },
+      ],
       search: {
         options: [
           {
@@ -163,10 +181,10 @@ app.get("/sonolus/levels/list", async (req, res) => {
     keywords
       .map(
         () =>
-          "(lower(name) LIKE lower(?) OR lower(title) LIKE lower(?) OR lower(artists) LIKE lower(?) OR lower(author) LIKE lower(?))"
+          "(name LIKE ? OR lower(title) LIKE lower(?) OR lower(artists) LIKE lower(?) OR lower(author) LIKE lower(?))"
       )
       .join(" AND ") || "TRUE"
-  }`;
+  } AND lower(author) NOT LIKE '%tootiejin%'`;
   const queryParam = keywords
     .map((keyword) => `%${keyword}%`)
     .flatMap((keyword) => [keyword, keyword, keyword, keyword]);
