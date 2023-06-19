@@ -1,6 +1,7 @@
 services:
   main:
     image: "ghcr.io/sevenc-nanashi/potato_leaves:latest"
+    pull_policy: always
     ports:
       - "${PORT}:3000"
     environment:
