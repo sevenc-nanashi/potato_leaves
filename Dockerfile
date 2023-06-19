@@ -18,5 +18,6 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --production
 
 COPY --from=build /app/dist ./dist
+COPY archive.db archive.db
 
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/index.js"]
