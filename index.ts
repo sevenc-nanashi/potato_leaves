@@ -1,0 +1,261 @@
+import express from "express";
+import { open } from "sqlite";
+import sqlite3 from "sqlite3";
+import chalk from "chalk";
+import { EngineItem, ItemList, LevelItem } from "sonolus-core";
+import axios from "axios";
+
+let db: Awaited<ReturnType<typeof open>>;
+
+const app = express();
+
+type Level = {
+  name: string;
+  title: string;
+  artists: string;
+  author: string;
+  rating: number;
+  description: string;
+};
+type File = {
+  name: string;
+  type: string;
+  hash: string;
+  url: string;
+};
+type FileSet = {
+  cover: File;
+  bgm: File;
+  data: File;
+  background: File;
+};
+
+let engine: EngineItem;
+
+const getFiles = async (files: File[]): Promise<FileSet> => {
+  const cover = files.find((file) => file.type === "LevelCover");
+  const bgm = files.find((file) => file.type === "LevelBgm");
+  const data = files.find((file) => file.type === "NewLevelData");
+  const background = files.find((file) => file.type === "BackgroundImage");
+  if (!cover || !bgm || !data || !background) {
+    const missing = Object.entries({ cover, bgm, data, background })
+      .filter(([, file]) => !file)
+      .map(([type]) => type);
+    throw new Error(`Missing files: ${missing.join(", ")}`);
+  }
+
+  return { cover, bgm, data, background };
+};
+
+const toLevelItem = (level: Level, files: FileSet): LevelItem => {
+  const { bgm, cover, data, background } = files;
+  return {
+    name: level.name.replace("frpt-", "ptlv-"),
+    title: level.title,
+    artists: level.artists,
+    author: level.author,
+    bgm: {
+      hash: bgm.hash,
+      url: bgm.url,
+      type: "LevelBgm",
+    },
+    cover: {
+      hash: cover.hash,
+      url: cover.url,
+      type: "LevelCover",
+    },
+    data: {
+      hash: data.hash,
+      url: data.url,
+      type: "LevelData",
+    },
+    useBackground: {
+      useDefault: false,
+      item: {
+        name: level.name.replace("frpt-", "ptlv-bg-"),
+        version: 2,
+        title: level.title,
+        subtitle: level.artists,
+        author: level.author,
+        thumbnail: {
+          type: "BackgroundThumbnail",
+          hash: "bc97c960f8cb509ed17ebfe7f15bf2a089a98b90",
+          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundThumbnail/bc97c960f8cb509ed17ebfe7f15bf2a089a98b90",
+        },
+        data: {
+          type: "BackgroundData",
+          hash: "5e32e7fc235b0952da1b7aa0a03e7745e1a7b3d2",
+          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundData/5e32e7fc235b0952da1b7aa0a03e7745e1a7b3d2",
+        },
+        image: {
+          type: "BackgroundImage",
+          hash: background.hash,
+          url: background.url,
+        },
+        configuration: {
+          type: "BackgroundConfiguration",
+          hash: "d4367d5b719299e702ca26a2923ce5ef3235c1c7",
+          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundConfiguration/d4367d5b719299e702ca26a2923ce5ef3235c1c7",
+        },
+      },
+    },
+    engine,
+    rating: level.rating,
+    useEffect: {
+      useDefault: true,
+    },
+    useParticle: {
+      useDefault: true,
+    },
+    useSkin: {
+      useDefault: true,
+    },
+    version: 1,
+  };
+};
+
+app.use((req, res, next) => {
+  console.log(chalk.blue("i) ") + `${chalk.green(req.method)} ${req.url}`);
+  res.header("Sonolus-Version", "0.7.0");
+  next();
+});
+
+app.get("/", (req, res) => {
+  res.send("Hello World!");
+});
+
+app.get("/sonolus/info", (req, res) => {
+  res.send({
+    title: "Potato Leaves",
+    levels: {
+      items: [],
+      search: {
+        options: [
+          {
+            query: "keywords",
+            name: "#KEYWORDS",
+            type: "text",
+            placeholder: "#KEYWORDS",
+          },
+        ],
+      },
+    },
+    engines: { items: [] },
+    particles: { items: [] },
+    skins: { items: [] },
+    effects: { items: [] },
+    backgrounds: { items: [] },
+  });
+});
+app.get("/sonolus/levels/list", async (req, res) => {
+  if (!req.query.page) {
+    res.status(400).send({
+      error: "Missing page",
+    });
+    return;
+  }
+  const keywords =
+    (req.query.keywords as string)
+      ?.split(" ")
+      .filter((keyword) => keyword.length > 0) || [];
+
+  const query = `WHERE ${
+    keywords
+      .map(
+        () =>
+          "(lower(name) LIKE lower(?) OR lower(title) LIKE lower(?) OR lower(artists) LIKE lower(?) OR lower(author) LIKE lower(?))"
+      )
+      .join(" AND ") || "TRUE"
+  }`;
+  const queryParam = keywords
+    .map((keyword) => `%${keyword}%`)
+    .flatMap((keyword) => [keyword, keyword, keyword, keyword]);
+
+  const levelCount = (await db
+    .get(`SELECT COUNT(*) FROM levels ${query}`, ...queryParam)
+    .then((row) => row["COUNT(*)"])) as number;
+
+  const levels: Level[] = await db.all(
+    `SELECT * FROM levels ${query} ORDER BY index_ DESC LIMIT 20 OFFSET ?`,
+    ...queryParam,
+    parseInt(req.query.page as string) * 20
+  );
+  const files: File[] = await db.all(
+    `SELECT * FROM files WHERE ${levels
+      .map(() => `name = ? OR `)
+      .join(" ")} FALSE`,
+    ...[...levels.map((level) => level.name)]
+  );
+
+  res.send({
+    pageCount: Math.ceil(levelCount / 20),
+    search: {
+      options: [
+        {
+          query: "keywords",
+          name: "#KEYWORDS",
+          type: "text",
+          placeholder: "#KEYWORDS",
+        },
+      ],
+    },
+    items: await Promise.all(
+      levels.flatMap((level) => [
+        getFiles(files.filter((file) => file.name === level.name))
+          .then((files) => toLevelItem(level, files))
+          .catch(() => null),
+      ])
+    ).then((items) => items.filter((item) => item !== null) as LevelItem[]),
+  } satisfies ItemList<LevelItem>);
+});
+
+app.get("/sonolus/levels/:name", async (req, res) => {
+  const level: Level | undefined = await db.get(
+    "SELECT * FROM levels WHERE name = ?",
+    req.params.name.replace("ptlv-", "frpt-")
+  );
+  if (!level) {
+    res.status(404).send({
+      error: "Level not found",
+    });
+    return;
+  }
+  const files: File[] = await db.all(
+    "SELECT * FROM files WHERE name = ?",
+    req.params.name.replace("ptlv-", "frpt-")
+  );
+  const fileSet = await getFiles(files);
+  res.send({
+    item: toLevelItem(level, fileSet),
+    description: level.description,
+    recommended: [],
+  });
+});
+(async () => {
+  const port = process.env.PORT || 3000;
+  db = await open({
+    filename: "./archive.db",
+    driver: sqlite3.Database,
+  });
+  const levelCount = await db
+    .get("SELECT COUNT(*) FROM levels")
+    .then((count) => count["COUNT(*)"]);
+  await axios
+    .get("https://servers.sonolus.com/pjsekai/sonolus/engines/list")
+    .then((res) => {
+      engine = JSON.parse(
+        JSON.stringify(res.data.items[0]).replaceAll(
+          '"/',
+          '"https://servers.sonolus.com/pjsekai/'
+        )
+      );
+    });
+
+  app.listen(port, async () => {
+    console.log(chalk.magenta(`Potato Leaves: Started at port ${port}`));
+    const files = await db.get("SELECT COUNT(*) FROM files");
+    console.log(chalk.blue("i) ") + `Levels: ${levelCount}`);
+    console.log(chalk.blue("i) ") + ` Files: ${files["COUNT(*)"]}`);
+    console.log();
+  });
+})();
