@@ -1,0 +1,8 @@
+services:
+  main:
+    image: "ghcr.io/sevenc-nanashi/potato_leaves:latest"
+    ports:
+      - "${PORT}:3000"
+    environment:
+      - PORT=3000
+
