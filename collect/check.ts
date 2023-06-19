@@ -1,4 +1,3 @@
-import assert from "assert";
 import { open } from "sqlite";
 import sqlite3 from "sqlite3";
 
@@ -19,11 +18,23 @@ let db: Awaited<ReturnType<typeof open>>;
     description: string;
     rating: number;
   }[] = await db.all("SELECT * FROM levels");
+  console.log(`Found ${levels.length} levels`);
+  let errors = 0;
   for (const level of levels) {
     const files = await db.all(
       "SELECT * FROM files WHERE name = ?",
       level.name
     );
-    assert(files.length === 4, `${level.name} has ${files.length} files`);
+    if (files.length !== 5) {
+      console.error(
+        `${level.name} has ${files.length} files: ${files
+          .map((file) => file.type)
+          .join(", ")}`
+      );
+      errors++;
+    }
+  }
+  if (errors === 0) {
+    console.log("All levels have 5 files");
   }
 })();

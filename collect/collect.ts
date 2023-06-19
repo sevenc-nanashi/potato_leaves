@@ -27,7 +27,7 @@ const sender = async () => {
     try {
       const queueItem = queue.shift();
       if (queueItem === undefined) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         continue;
       } else if (queueItem === false) {
         break;
@@ -93,6 +93,11 @@ const sender = async () => {
       const fileResp = await axios.post(webhookUrl + "?wait=1", formData);
       const fileUrl = fileResp.data.attachments[0].url;
       await db.run(
+        "DELETE FROM files WHERE name = ? AND type = ?",
+        name,
+        item.type
+      );
+      await db.run(
         "INSERT INTO files (name, type, hash, url) VALUES (?, ?, ?, ?)",
         name,
         item.type,
@@ -143,6 +148,7 @@ const collector = async () => {
           queue.push([levelName, level.data]);
           queue.push([levelName, level.useBackground.item.image]);
           if (await db.get("SELECT * FROM levels WHERE name = ?", levelName)) {
+            shouldExit = true;
             return;
           }
           const index = i + pageNumber * 20 + 1;

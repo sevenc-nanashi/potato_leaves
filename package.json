@@ -7,7 +7,7 @@
     "start": "ts-node ./index.ts",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "collect": "run-s collect:fetch collect:check collect:convert",
+    "collect": "run-s collect:fetch collect:convert collect:check",
     "collect:fetch": "ts-node ./collect/collect.ts",
     "collect:check": "ts-node ./collect/check.ts",
     "collect:convert": "ts-node ./collect/convert.ts"
