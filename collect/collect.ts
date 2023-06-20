@@ -1,3 +1,4 @@
+import fs from "fs";
 import dotenv from "dotenv";
 import axios from "axios";
 import { open } from "sqlite";
@@ -11,10 +12,11 @@ axiosRetry(axios, { retries: 3 });
 let db: Awaited<ReturnType<typeof open>>;
 dotenv.config();
 
-const webhookUrl = process.env.WEBHOOK_URL;
-if (!webhookUrl) {
-  throw new Error("WEBHOOK_URL is not defined");
-}
+const webhookUrls = fs
+  .readFileSync("./webhook_urls.txt", "utf-8")
+  .trim()
+  .split("\n")
+  .map((s) => s.trim());
 
 const queue: (
   | [name: string, dest: { type: string; hash: string; url: string }]
@@ -22,7 +24,11 @@ const queue: (
 )[] = [];
 
 const sender = async () => {
-  let lastSendTime = Date.now();
+  let i = 0;
+  const webhooks = webhookUrls.map((url) => ({
+    url,
+    lastSendTime: 0,
+  }));
   while (true) {
     try {
       const queueItem = queue.shift();
@@ -85,12 +91,14 @@ const sender = async () => {
         );
       }
       formData.append("content", hash);
-      if (Date.now() - lastSendTime < 1000) {
+      i = (i + 1) % webhooks.length;
+      const webhook = webhooks[i];
+      if (Date.now() - webhook.lastSendTime < 1100) {
         await new Promise((resolve) =>
-          setTimeout(resolve, 1000 - (Date.now() - lastSendTime))
+          setTimeout(resolve, 1100 - (Date.now() - webhook.lastSendTime))
         );
       }
-      const fileResp = await axios.post(webhookUrl + "?wait=1", formData);
+      const fileResp = await axios.post(webhook.url + "?wait=1", formData);
       const fileUrl = fileResp.data.attachments[0].url;
       await db.run(
         "DELETE FROM files WHERE name = ? AND type = ?",

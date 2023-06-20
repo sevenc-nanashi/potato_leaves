@@ -1,4 +1,4 @@
-import fs from "fs/promises";
+import fs from "fs";
 import dotenv from "dotenv";
 import axios from "axios";
 import { open } from "sqlite";
@@ -18,17 +18,22 @@ axiosRetry(axios, { retries: 3, retryDelay: () => 1000 });
 let db: Awaited<ReturnType<typeof open>>;
 dotenv.config();
 
-const webhookUrl = process.env.WEBHOOK_URL;
-if (!webhookUrl) {
-  throw new Error("WEBHOOK_URL is not defined");
-}
+const webhookUrls = fs
+  .readFileSync("./webhook_urls.txt", "utf-8")
+  .trim()
+  .split("\n")
+  .map((s) => s.trim());
 
 const queue: ({ name: string; data: Buffer } | false)[] = [];
 
 const httpsAgent = new https.Agent({ keepAlive: true });
 
 const sender = async () => {
-  let lastSendTime = Date.now();
+  let i = 0;
+  const webhooks = webhookUrls.map((url) => ({
+    url,
+    lastSendTime: 0,
+  }));
   while (true) {
     try {
       const queueItem = queue.shift();
@@ -50,13 +55,15 @@ const sender = async () => {
         name,
         "NewLevelData"
       );
-      if (Date.now() - lastSendTime < 1100) {
+      i = (i + 1) % webhooks.length;
+      const webhook = webhooks[i];
+
+      if (Date.now() - webhook.lastSendTime < 1100) {
         console.log("Sender: Waiting for rate limit");
         await new Promise((resolve) =>
-          setTimeout(resolve, 1100 - (Date.now() - lastSendTime))
+          setTimeout(resolve, 1100 - (Date.now() - webhook.lastSendTime))
         );
       }
-      lastSendTime = Date.now();
       let fileUrl: string;
       while (true) {
         console.log(`Sender: Sending request (length: ${data.length})`);
@@ -68,7 +75,7 @@ const sender = async () => {
             filename: sha,
           });
 
-          const fileResp = await axios.post(webhookUrl + "?wait=1", formData, {
+          const fileResp = await axios.post(webhook.url + "?wait=1", formData, {
             validateStatus: (code) => code === 200 || code === 429,
             timeout: 5000,
             httpsAgent,
@@ -89,6 +96,7 @@ const sender = async () => {
           httpsAgent.destroy();
         }
       }
+      webhook.lastSendTime = Date.now();
       await db.run(
         "INSERT INTO files (name, type, hash, url) VALUES (?, ?, ?, ?)",
         name,
@@ -96,7 +104,7 @@ const sender = async () => {
         sha,
         fileUrl
       );
-      console.log(`Sender: ${name} (${sha}) -> ${fileUrl}`);
+      console.log(`Sender: [${i}] ${name} (${sha}) -> ${fileUrl}`);
     } catch (e) {
       console.error(e);
     }
@@ -145,7 +153,7 @@ const converter = async () => {
   const existingLevelDataList = await db
     .all("SELECT * FROM files WHERE type = 'NewLevelData'")
     .then((rows) => new Set(rows.map((row) => row.name)));
-  for (const levelData of levelDataList) {
+  for (const [index, levelData] of levelDataList.entries()) {
     if (existingLevelDataList.has(levelData.name)) {
       continue;
     }
@@ -156,7 +164,11 @@ const converter = async () => {
       }
     }
 
-    console.log(`Converter: started ${levelData.name}`);
+    console.log(
+      `Converter: started ${levelData.name} (${index + 1}/${
+        levelDataList.length
+      })`
+    );
     const levelDataResp = await axios.get(levelData.url, {
       responseType: "arraybuffer",
     });
@@ -271,7 +283,13 @@ const converter = async () => {
                 entity.archetype === 8
                   ? "NormalSlideEndFlickNote"
                   : "CriticalSlideEndFlickNote",
-              data: [...valueArrayToKeyedObject(entity.data.values)],
+              data: [
+                ...valueArrayToKeyedObject(entity.data.values),
+                {
+                  name: "direction",
+                  value: convertFlick(entity.data.values[3]),
+                },
+              ],
             };
             break;
           case 9:

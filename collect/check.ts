@@ -20,11 +20,15 @@ let db: Awaited<ReturnType<typeof open>>;
   }[] = await db.all("SELECT * FROM levels");
   console.log(`Found ${levels.length} levels`);
   let errors = 0;
+  const allFiles: {
+    i: number;
+    name: string;
+    type: string;
+    hash: string;
+    url: string;
+  }[] = await db.all("SELECT * FROM files");
   for (const level of levels) {
-    const files = await db.all(
-      "SELECT * FROM files WHERE name = ?",
-      level.name
-    );
+    const files = allFiles.filter((file) => file.name === level.name);
     if (files.length !== 5) {
       console.error(
         `${level.name} has ${files.length} files: ${files
