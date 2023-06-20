@@ -129,15 +129,27 @@ app.get("/levels/:name", (req, res) => {
   );
 });
 
+const messages: Record<string, Record<string, string>> = {
+  ja: {
+    infoTitle: "Potato Leaves へようこそ！",
+    infoArtists: "レベルを閲覧するには [ もっと ] をタップしてください。",
+  },
+  en: {
+    infoTitle: "Welcome to Potato Leaves!",
+    infoArtists: "Tap [ More ] to browse levels.",
+  },
+};
+
 app.get("/sonolus/info", (req, res) => {
+  const message = messages[req.query.localization as string] ?? messages.en;
   res.send({
     title: "Potato Leaves",
     levels: {
       items: [
         {
           name: "ptlv-sys",
-          title: "Welcome to Potato Leaves!",
-          artists: "Tap [ More ] to browse levels.",
+          title: message.infoTitle,
+          artists: message.infoArtists,
 
           author: "System",
           version: 1,
