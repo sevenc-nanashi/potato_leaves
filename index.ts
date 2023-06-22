@@ -129,41 +129,28 @@ app.get("/levels/:name", (req, res) => {
   );
 });
 
-const messages: Record<string, Record<string, string>> = {
-  ja: {
-    infoTitle: "Potato Leaves へようこそ！",
-    infoArtists: "レベルを閲覧するには [ もっと ] をタップしてください。",
-  },
-  en: {
-    infoTitle: "Welcome to Potato Leaves!",
-    infoArtists: "Tap [ More ] to browse levels.",
-  },
-};
+app.get("/sonolus/info", async (req, res) => {
+  const levels: Level[] = await db.all(
+    "SELECT * FROM levels WHERE lower(author) NOT LIKE '%tootiejin%' ORDER BY random() LIMIT 5"
+  );
+  console.log(levels);
+  const files: File[] = await db.all(
+    `SELECT * FROM files WHERE name IN (${levels.map(() => "?").join(", ")})`,
+    levels.map((level) => level.name)
+  );
+  console.log(files);
+  const levelItems = await Promise.all(
+    levels.map(async (level) => {
+      const levelFiles = files.filter((file) => file.name === level.name);
+      const fileSet = await getFiles(levelFiles);
+      return toLevelItem(level, fileSet);
+    })
+  );
 
-app.get("/sonolus/info", (req, res) => {
-  const message = messages[req.query.localization as string] ?? messages.en;
   res.send({
     title: "Potato Leaves",
     levels: {
-      items: [
-        {
-          name: "ptlv-sys",
-          title: message.infoTitle,
-          artists: message.infoArtists,
-
-          author: "System",
-          version: 1,
-          rating: 0,
-          engine: { name: "ptlv-dummy", version: 5, title: "(Message)" },
-          cover: {
-            type: "LevelCover",
-            url: "https://cc.sevenc7c.com/assets/info.png",
-            hash: "1fbbc7e736f7f26bc9261df85f020b3f8f336bd1",
-          },
-          bgm: { type: "LevelBgm", url: "" },
-          data: { type: "LevelData", url: "" },
-        },
-      ],
+      items: levelItems,
       search: {
         options: [
           {
