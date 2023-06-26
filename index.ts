@@ -133,12 +133,10 @@ app.get("/sonolus/info", async (req, res) => {
   const levels: Level[] = await db.all(
     "SELECT * FROM levels WHERE lower(author) NOT LIKE '%tootiejin%' ORDER BY random() LIMIT 5"
   );
-  console.log(levels);
   const files: File[] = await db.all(
     `SELECT * FROM files WHERE name IN (${levels.map(() => "?").join(", ")})`,
     levels.map((level) => level.name)
   );
-  console.log(files);
   const levelItems = await Promise.all(
     levels.map(async (level) => {
       const levelFiles = files.filter((file) => file.name === level.name);
@@ -263,12 +261,12 @@ app.get("/sonolus/levels/:name", async (req, res) => {
     .get("SELECT COUNT(*) FROM levels")
     .then((count) => count["COUNT(*)"]);
   await axios
-    .get("https://servers.sonolus.com/pjsekai/sonolus/engines/list")
+    .get("https://cc.sevenc7c.com/sonolus/engines/list")
     .then((res) => {
       engine = JSON.parse(
         JSON.stringify(res.data.items[0]).replaceAll(
           '"/',
-          '"https://servers.sonolus.com/pjsekai/'
+          '"https://cc.sevenc7c.com/'
         )
       );
     });
