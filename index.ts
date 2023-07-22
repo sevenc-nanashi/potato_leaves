@@ -116,7 +116,7 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
 
 app.use((req, res, next) => {
   console.log(chalk.blue("i) ") + `${chalk.green(req.method)} ${req.url}`);
-  res.header("Sonolus-Version", "0.7.0");
+  res.header("Sonolus-Version", "0.7.1");
   next();
 });
 
@@ -174,10 +174,19 @@ app.get("/sonolus/levels/list", async (req, res) => {
     });
     return;
   }
+  if (
+    Array.isArray(req.query.page) ||
+    isNaN(+req.query.page) ||
+    (!!req.query.keywords && typeof req.query.keywords !== "string")
+  ) {
+    res.status(400).send({
+      error: "Invalid request",
+    });
+    return;
+  }
   const keywords =
-    (req.query.keywords as string)
-      ?.split(" ")
-      .filter((keyword) => keyword.length > 0) || [];
+    req.query.keywords?.split(" ").filter((keyword) => keyword.length > 0) ||
+    [];
 
   const query = `WHERE ${
     keywords
