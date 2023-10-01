@@ -313,7 +313,7 @@ const converter = async () => {
                 startRef = generatedSlideStart;
               } else {
                 newLevelDataJson.entities.push({
-                  archetype: "IgnoredSlideTickNote",
+                  archetype: "HiddenSlideStartNote",
                   data: [...valueArrayToKeyedObject(entity.data.values)],
                   ref: `s-${index}`,
                 });
@@ -338,7 +338,7 @@ const converter = async () => {
             let endRef: string;
             if (slideEnd === -1) {
               newLevelDataJson.entities.push({
-                archetype: "IgnoredSlideTickNote",
+                archetype: "HiddenSlideTickNote",
                 data: [
                   ...valueArrayToKeyedObject([
                     entity.data.values[3],
@@ -445,7 +445,7 @@ const converter = async () => {
         });
         const nearSlide = nearSlides[0];
         newLevelDataJson.entities.push({
-          archetype: "HiddenSlideTickNote",
+          archetype: "IgnoredSlideTickNote",
           data: [
             {
               name: "#BEAT",
