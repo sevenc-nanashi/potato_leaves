@@ -11,12 +11,14 @@
     "collect": "run-s collect:fetch collect:convert collect:check",
     "collect:fetch": "ts-node ./collect/collect.ts",
     "collect:check": "ts-node ./collect/check.ts",
-    "collect:convert": "ts-node ./collect/convert.ts"
+    "collect:convert": "ts-node ./collect/convert.ts",
+    "collect:upload": "ts-node ./collect/upload.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@aws-sdk/client-s3": "3.428.0",
     "@tsconfig/node18": "2.0.1",
     "@types/express": "4.17.17",
     "@types/node": "^18.16.18",
