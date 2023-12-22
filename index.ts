@@ -116,7 +116,7 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
 
 app.use((req, res, next) => {
   console.log(chalk.blue("i) ") + `${chalk.green(req.method)} ${req.url}`);
-  res.header("Sonolus-Version", "0.7.4");
+  res.header("Sonolus-Version", "0.7.5");
   next();
 });
 
@@ -195,7 +195,7 @@ app.get("/sonolus/levels/list", async (req, res) => {
           "(name LIKE ? OR lower(title) LIKE lower(?) OR lower(artists) LIKE lower(?) OR lower(author) LIKE lower(?))"
       )
       .join(" AND ") || "TRUE"
-  } AND lower(author) NOT LIKE '%tootiejin%'`;
+  }`;
   const queryParam = keywords
     .map((keyword) => `%${keyword}%`)
     .flatMap((keyword) => [keyword, keyword, keyword, keyword]);
