@@ -79,13 +79,13 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
         author: level.author,
         thumbnail: {
           type: "BackgroundThumbnail",
-          hash: "bc97c960f8cb509ed17ebfe7f15bf2a089a98b90",
-          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundThumbnail/bc97c960f8cb509ed17ebfe7f15bf2a089a98b90",
+          hash: "05445b486c1c62cd61895fb7b0f21976216759fe",
+          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundThumbnail/05445b486c1c62cd61895fb7b0f21976216759fe",
         },
         data: {
           type: "BackgroundData",
-          hash: "5e32e7fc235b0952da1b7aa0a03e7745e1a7b3d2",
-          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundData/5e32e7fc235b0952da1b7aa0a03e7745e1a7b3d2",
+          hash: "96ba4437727152c8be550639d5a545f2c5b0ad01",
+          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundData/96ba4437727152c8be550639d5a545f2c5b0ad01",
         },
         image: {
           type: "BackgroundImage",
@@ -94,8 +94,8 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
         },
         configuration: {
           type: "BackgroundConfiguration",
-          hash: "d4367d5b719299e702ca26a2923ce5ef3235c1c7",
-          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundConfiguration/d4367d5b719299e702ca26a2923ce5ef3235c1c7",
+          hash: "257c216ee84b018eebd212c28d62d086f6c9d271",
+          url: "https://servers.sonolus.com/pjsekai/sonolus/repository/BackgroundConfiguration/257c216ee84b018eebd212c28d62d086f6c9d271",
         },
       },
     },
