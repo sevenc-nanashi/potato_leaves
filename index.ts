@@ -248,7 +248,7 @@ app.get("/sonolus/levels/:name", async (req, res) => {
 });
 
 app.get("/assets/bgData.json.gz", async (req, res) => {
-  res.sendFile("assets/bgData.json.gz", { root: __dirname });
+  res.sendFile("assets/bgData.json.gz", { root: process.cwd() });
 });
 (async () => {
   const port = process.env.PORT || 3000;
