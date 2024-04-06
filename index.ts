@@ -9,10 +9,13 @@ import {
   ItemList,
   LevelItem,
   ServerInfo,
+  hash,
 } from "@sonolus/core";
 import axios from "axios";
+import fs from "fs";
 
 let db: Awaited<ReturnType<typeof open>>;
+let bgDataHash: string;
 
 const app = express();
 
@@ -83,7 +86,10 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
         subtitle: level.artists,
         author: level.author,
         thumbnail: engine.background.thumbnail,
-        data: engine.background.data,
+        data: {
+          hash: bgDataHash,
+          url: `/assets/bgData.json.gz`,
+        },
         tags: [],
         image: {
           hash: background.hash,
@@ -131,7 +137,7 @@ app.get("/sonolus/info", async (req, res) => {
 });
 app.get("/sonolus/levels/info", async (req, res) => {
   const levels: Level[] = await db.all(
-    "SELECT * FROM levels WHERE lower(author) NOT LIKE '%tootiejin%' ORDER BY random() LIMIT 5"
+    "SELECT * FROM levels ORDER BY random() LIMIT 5"
   );
   const files: File[] = await db.all(
     `SELECT * FROM files WHERE name IN (${levels.map(() => "?").join(", ")})`,
@@ -150,13 +156,7 @@ app.get("/sonolus/levels/info", async (req, res) => {
     sections: [
       {
         title: "#RANDOM",
-        items: await Promise.all(
-          levels.flatMap((level) => [
-            getFiles(files.filter((file) => file.name === level.name))
-              .then((files) => toLevelItem(level, files))
-              .catch(() => null),
-          ])
-        ).then((items) => items.filter((item) => item !== null) as LevelItem[]),
+        items: levelItems,
       },
     ],
   } satisfies ItemInfo<LevelItem>);
@@ -246,8 +246,13 @@ app.get("/sonolus/levels/:name", async (req, res) => {
     sections: [],
   } satisfies ItemDetails<LevelItem>);
 });
+
+app.get("/assets/bgData.json.gz", async (req, res) => {
+  res.sendFile("assets/bgData.json.gz", { root: __dirname });
+});
 (async () => {
   const port = process.env.PORT || 3000;
+  bgDataHash = hash(await fs.promises.readFile("assets/bgData.json.gz"));
   db = await open({
     filename: "./archive.db",
     driver: sqlite3.Database,
