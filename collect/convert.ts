@@ -6,9 +6,13 @@ import sqlite3 from "sqlite3";
 import FormData from "form-data";
 import { gunzip as gunzipCb, gzip as gzipCb } from "zlib";
 import { promisify } from "util";
-import { LevelData, LevelDataEntity, hash } from "sonolus-core";
+import { LevelData, LevelDataEntity, hash } from "@sonolus/core";
 import axiosRetry from "axios-retry";
 import https from "https";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+
+dotenv.config({ path: ".env" });
+dotenv.config({ path: "../.env" });
 
 const gunzip = promisify(gunzipCb);
 const gzip = promisify(gzipCb);
@@ -16,13 +20,15 @@ const gzip = promisify(gzipCb);
 axiosRetry(axios, { retries: 3, retryDelay: () => 1000 });
 
 let db: Awaited<ReturnType<typeof open>>;
-dotenv.config();
 
-const webhookUrls = fs
-  .readFileSync("./webhook_urls.txt", "utf-8")
-  .trim()
-  .split("\n")
-  .map((s) => s.trim());
+const s3Client = new S3Client({
+  endpoint: process.env.S3_ENDPOINT!,
+  credentials: {
+    accessKeyId: process.env.S3_USER!,
+    secretAccessKey: process.env.S3_PASSWORD!,
+  },
+  region: process.env.S3_REGION!,
+});
 
 const queue: ({ name: string; data: Buffer } | false)[] = [];
 
@@ -30,10 +36,6 @@ const httpsAgent = new https.Agent({ keepAlive: true });
 
 const sender = async () => {
   let i = 0;
-  const webhooks = webhookUrls.map((url) => ({
-    url,
-    lastSendTime: 0,
-  }));
   while (true) {
     try {
       const queueItem = queue.shift();
@@ -50,53 +52,21 @@ const sender = async () => {
       console.log(`Sender: Sending ${name}`);
       const sha = hash(data);
 
+      const result = await s3Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: sha,
+          Body: data,
+        })
+      );
+
+      const fileUrl = process.env.S3_PUBLIC_URL + sha;
+
       await db.run(
         "DELETE FROM files WHERE name = ? AND type = ?",
         name,
         "NewLevelData"
       );
-      i = (i + 1) % webhooks.length;
-      const webhook = webhooks[i];
-
-      if (Date.now() - webhook.lastSendTime < 1100) {
-        console.log("Sender: Waiting for rate limit");
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1100 - (Date.now() - webhook.lastSendTime))
-        );
-      }
-      let fileUrl: string;
-      while (true) {
-        console.log(`Sender: Sending request (length: ${data.length})`);
-        try {
-          const formData = new FormData();
-
-          formData.append("content", sha);
-          formData.append("files[0]", data, {
-            filename: sha,
-          });
-
-          const fileResp = await axios.post(webhook.url + "?wait=1", formData, {
-            validateStatus: (code) => code === 200 || code === 429,
-            timeout: 5000,
-            httpsAgent,
-          });
-          if (fileResp.status === 429) {
-            console.log(
-              `Sender: Rate limited for ${fileResp.data.retry_after}s`
-            );
-            await new Promise((resolve) =>
-              setTimeout(resolve, fileResp.data.retry_after * 1000)
-            );
-            continue;
-          }
-          fileUrl = fileResp.data.attachments[0].url;
-          break;
-        } catch (e) {
-          console.log(`Sender: Request failed, ${e}`);
-          httpsAgent.destroy();
-        }
-      }
-      webhook.lastSendTime = Date.now();
       await db.run(
         "INSERT INTO files (name, type, hash, url) VALUES (?, ?, ?, ?)",
         name,
@@ -315,7 +285,7 @@ const converter = async () => {
                 newLevelDataJson.entities.push({
                   archetype: "HiddenSlideStartNote",
                   data: [...valueArrayToKeyedObject(entity.data.values)],
-                  ref: `s-${index}`,
+                  name: `s-${index}`,
                 });
                 generatedHiddenTicks[
                   `${entity.data.values[0]}-${entity.data.values[1]}-${entity.data.values[2]}`
@@ -346,7 +316,7 @@ const converter = async () => {
                     entity.data.values[5],
                   ]),
                 ],
-                ref: `e-${index}`,
+                name: `e-${index}`,
               });
               generatedHiddenTicks[
                 `${entity.data.values[3]}-${entity.data.values[4]}-${entity.data.values[5]}`
@@ -386,7 +356,7 @@ const converter = async () => {
           default:
             throw new Error(`Unknown archetype: ${entity.archetype}`);
         }
-        data.ref = index.toString();
+        data.name = index.toString();
         newLevelDataJson.entities.push(data);
       }
       const slideEntities = Object.entries(levelDataJson.entities).filter(
@@ -487,23 +457,23 @@ const converter = async () => {
               "value" in e.data[0] &&
               "value" in entity.data[0] &&
               e.data[0].value === entity.data[0].value &&
-              e.ref !== entity.ref &&
-              !combinations.has(`${e.ref}:${entity.ref}`)
+              e.name !== entity.name &&
+              !combinations.has(`${e.name}:${entity.name}`)
           );
           for (const otherEntity of sameTimeEntities) {
-            if (!entity.ref || !otherEntity.ref) throw new Error("No ref");
-            combinations.add(`${entity.ref}:${otherEntity.ref}`);
-            combinations.add(`${otherEntity.ref}:${entity.ref}`);
+            if (!entity.name || !otherEntity.name) throw new Error("No ref");
+            combinations.add(`${entity.name}:${otherEntity.name}`);
+            combinations.add(`${otherEntity.name}:${entity.name}`);
             newLevelDataJson.entities.push({
               archetype: "SimLine",
               data: [
                 {
                   name: "a",
-                  ref: entity.ref,
+                  ref: entity.name,
                 },
                 {
                   name: "b",
-                  ref: otherEntity.ref,
+                  ref: otherEntity.name,
                 },
               ],
             });

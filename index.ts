@@ -2,7 +2,14 @@ import express from "express";
 import { open } from "sqlite";
 import sqlite3 from "sqlite3";
 import chalk from "chalk";
-import { EngineItem, ItemList, LevelItem } from "sonolus-core";
+import {
+  EngineItem,
+  ItemDetails,
+  ItemInfo,
+  ItemList,
+  LevelItem,
+  ServerInfo,
+} from "@sonolus/core";
 import axios from "axios";
 
 let db: Awaited<ReturnType<typeof open>>;
@@ -54,20 +61,18 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
     title: level.title,
     artists: level.artists,
     author: level.author,
+    tags: [],
     bgm: {
       hash: bgm.hash,
       url: bgm.url,
-      type: "LevelBgm",
     },
     cover: {
       hash: cover.hash,
       url: cover.url,
-      type: "LevelCover",
     },
     data: {
       hash: data.hash,
       url: data.url,
-      type: "LevelData",
     },
     useBackground: {
       useDefault: false,
@@ -79,8 +84,8 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
         author: level.author,
         thumbnail: engine.background.thumbnail,
         data: engine.background.data,
+        tags: [],
         image: {
-          type: "BackgroundImage",
           hash: background.hash,
           url: background.url,
         },
@@ -104,7 +109,7 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
 
 app.use((req, res, next) => {
   console.log(chalk.blue("i) ") + `${chalk.green(req.method)} ${req.url}`);
-  res.header("Sonolus-Version", "0.7.5");
+  res.header("Sonolus-Version", "0.8.0");
   next();
 });
 
@@ -118,6 +123,13 @@ app.get("/levels/:name", (req, res) => {
 });
 
 app.get("/sonolus/info", async (req, res) => {
+  res.send({
+    title: "Potato Leaves",
+    hasAuthentication: false,
+    hasMultiplayer: false,
+  } satisfies ServerInfo);
+});
+app.get("/sonolus/levels/info", async (req, res) => {
   const levels: Level[] = await db.all(
     "SELECT * FROM levels WHERE lower(author) NOT LIKE '%tootiejin%' ORDER BY random() LIMIT 5"
   );
@@ -134,27 +146,22 @@ app.get("/sonolus/info", async (req, res) => {
   );
 
   res.send({
-    title: "Potato Leaves",
-    levels: {
-      items: levelItems,
-      search: {
-        options: [
-          {
-            query: "keywords",
-            name: "#KEYWORDS",
-            type: "text",
-            placeholder: "#KEYWORDS",
-          },
-        ],
+    searches: [],
+    sections: [
+      {
+        title: "#RANDOM",
+        items: await Promise.all(
+          levels.flatMap((level) => [
+            getFiles(files.filter((file) => file.name === level.name))
+              .then((files) => toLevelItem(level, files))
+              .catch(() => null),
+          ])
+        ).then((items) => items.filter((item) => item !== null) as LevelItem[]),
       },
-    },
-    engines: { items: [] },
-    particles: { items: [] },
-    skins: { items: [] },
-    effects: { items: [] },
-    backgrounds: { items: [] },
-  });
+    ],
+  } satisfies ItemInfo<LevelItem>);
 });
+
 app.get("/sonolus/levels/list", async (req, res) => {
   if (!req.query.page) {
     res.status(400).send({
@@ -206,16 +213,7 @@ app.get("/sonolus/levels/list", async (req, res) => {
 
   res.send({
     pageCount: Math.ceil(levelCount / 20),
-    search: {
-      options: [
-        {
-          query: "keywords",
-          name: "#KEYWORDS",
-          type: "text",
-          placeholder: "#KEYWORDS",
-        },
-      ],
-    },
+    searches: [],
     items: await Promise.all(
       levels.flatMap((level) => [
         getFiles(files.filter((file) => file.name === level.name))
@@ -245,8 +243,8 @@ app.get("/sonolus/levels/:name", async (req, res) => {
   res.send({
     item: toLevelItem(level, fileSet),
     description: level.description,
-    recommended: [],
-  });
+    sections: [],
+  } satisfies ItemDetails<LevelItem>);
 });
 (async () => {
   const port = process.env.PORT || 3000;
