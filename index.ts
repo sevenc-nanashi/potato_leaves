@@ -64,6 +64,7 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
     title: level.title,
     artists: level.artists,
     author: level.author,
+    source: "https://ptlv.sevenc7c.com",
     tags: [],
     bgm: {
       hash: bgm.hash,
