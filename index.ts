@@ -116,7 +116,7 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
 
 app.use((req, res, next) => {
   console.log(chalk.blue("i) ") + `${chalk.green(req.method)} ${req.url}`);
-  res.header("Sonolus-Version", "0.8.2");
+  res.header("Sonolus-Version", "0.8.3");
   next();
 });
 
@@ -125,31 +125,34 @@ app.get("/", (req, res) => {
 });
 app.get("/levels/:name", (req, res) => {
   res.redirect(
-    `https://open.sonolus.com/${req.hostname}/levels/${req.params.name}`
+    `https://open.sonolus.com/${req.hostname}/levels/${req.params.name}`,
   );
 });
 
 app.get("/sonolus/info", async (req, res) => {
   res.send({
     title: "Potato Leaves",
-    hasAuthentication: false,
-    hasMultiplayer: false,
+    buttons: [
+      {
+        type: "level",
+      },
+    ],
   } satisfies ServerInfo);
 });
 app.get("/sonolus/levels/info", async (req, res) => {
   const levels: Level[] = await db.all(
-    "SELECT * FROM levels ORDER BY random() LIMIT 5"
+    "SELECT * FROM levels ORDER BY random() LIMIT 5",
   );
   const files: File[] = await db.all(
     `SELECT * FROM files WHERE name IN (${levels.map(() => "?").join(", ")})`,
-    levels.map((level) => level.name)
+    levels.map((level) => level.name),
   );
   const levelItems = await Promise.all(
     levels.map(async (level) => {
       const levelFiles = files.filter((file) => file.name === level.name);
       const fileSet = await getFiles(levelFiles);
       return toLevelItem(level, fileSet);
-    })
+    }),
   );
 
   res.send({
@@ -188,7 +191,7 @@ app.get("/sonolus/levels/list", async (req, res) => {
     keywords
       .map(
         () =>
-          "(name LIKE ? OR lower(title) LIKE lower(?) OR lower(artists) LIKE lower(?) OR lower(author) LIKE lower(?))"
+          "(name LIKE ? OR lower(title) LIKE lower(?) OR lower(artists) LIKE lower(?) OR lower(author) LIKE lower(?))",
       )
       .join(" AND ") || "TRUE"
   }`;
@@ -203,13 +206,13 @@ app.get("/sonolus/levels/list", async (req, res) => {
   const levels: Level[] = await db.all(
     `SELECT * FROM levels ${query} ORDER BY index_ DESC LIMIT 20 OFFSET ?`,
     ...queryParam,
-    parseInt(req.query.page as string) * 20
+    parseInt(req.query.page as string) * 20,
   );
   const files: File[] = await db.all(
     `SELECT * FROM files WHERE ${levels
       .map(() => `name = ? OR `)
       .join(" ")} FALSE`,
-    ...[...levels.map((level) => level.name)]
+    ...[...levels.map((level) => level.name)],
   );
 
   res.send({
@@ -220,7 +223,7 @@ app.get("/sonolus/levels/list", async (req, res) => {
         getFiles(files.filter((file) => file.name === level.name))
           .then((files) => toLevelItem(level, files))
           .catch(() => null),
-      ])
+      ]),
     ).then((items) => items.filter((item) => item !== null) as LevelItem[]),
   } satisfies ItemList<LevelItem>);
 });
@@ -228,7 +231,7 @@ app.get("/sonolus/levels/list", async (req, res) => {
 app.get("/sonolus/levels/:name", async (req, res) => {
   const level: Level | undefined = await db.get(
     "SELECT * FROM levels WHERE name = ?",
-    req.params.name.replace("ptlv-", "frpt-")
+    req.params.name.replace("ptlv-", "frpt-"),
   );
   if (!level) {
     res.status(404).send({
@@ -238,13 +241,15 @@ app.get("/sonolus/levels/:name", async (req, res) => {
   }
   const files: File[] = await db.all(
     "SELECT * FROM files WHERE name = ?",
-    req.params.name.replace("ptlv-", "frpt-")
+    req.params.name.replace("ptlv-", "frpt-"),
   );
   const fileSet = await getFiles(files);
   res.send({
     item: toLevelItem(level, fileSet),
     description: level.description,
     sections: [],
+    hasCommunity: false,
+    leaderboards: [],
   } satisfies ItemDetails<LevelItem>);
 });
 
@@ -267,8 +272,8 @@ app.get("/assets/bgData.json.gz", async (req, res) => {
       engine = JSON.parse(
         JSON.stringify(res.data.items[0]).replaceAll(
           '"/',
-          '"https://cc.sevenc7c.com/'
-        )
+          '"https://cc.sevenc7c.com/',
+        ),
       );
     });
 
