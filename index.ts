@@ -4,9 +4,9 @@ import sqlite3 from "sqlite3";
 import chalk from "chalk";
 import {
   EngineItem,
-  ItemDetails,
-  ItemInfo,
-  ItemList,
+  ServerItemDetails,
+  ServerItemInfo,
+  ServerItemList,
   LevelItem,
   ServerInfo,
   hash,
@@ -116,7 +116,7 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
 
 app.use((req, res, next) => {
   console.log(chalk.blue("i) ") + `${chalk.green(req.method)} ${req.url}`);
-  res.header("Sonolus-Version", "0.8.3");
+  res.header("Sonolus-Version", "0.8.4");
   next();
 });
 
@@ -132,6 +132,7 @@ app.get("/levels/:name", (req, res) => {
 app.get("/sonolus/info", async (req, res) => {
   res.send({
     title: "Potato Leaves",
+    configuration: { options: [] },
     buttons: [
       {
         type: "level",
@@ -159,11 +160,12 @@ app.get("/sonolus/levels/info", async (req, res) => {
     searches: [],
     sections: [
       {
+        itemType: "level",
         title: "#RANDOM",
         items: levelItems,
       },
     ],
-  } satisfies ItemInfo<LevelItem>);
+  } satisfies ServerItemInfo);
 });
 
 app.get("/sonolus/levels/list", async (req, res) => {
@@ -225,7 +227,7 @@ app.get("/sonolus/levels/list", async (req, res) => {
           .catch(() => null),
       ]),
     ).then((items) => items.filter((item) => item !== null) as LevelItem[]),
-  } satisfies ItemList<LevelItem>);
+  } satisfies ServerItemList<LevelItem>);
 });
 
 app.get("/sonolus/levels/:name", async (req, res) => {
@@ -248,9 +250,10 @@ app.get("/sonolus/levels/:name", async (req, res) => {
     item: toLevelItem(level, fileSet),
     description: level.description,
     sections: [],
+    actions: [],
     hasCommunity: false,
     leaderboards: [],
-  } satisfies ItemDetails<LevelItem>);
+  } satisfies ServerItemDetails<LevelItem>);
 });
 
 app.get("/assets/bgData.json.gz", async (req, res) => {
