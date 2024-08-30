@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@sonolus/core':
-        specifier: ^7.8.0
-        version: 7.8.0
+        specifier: ^7.9.0
+        version: 7.9.0
       axios:
         specifier: 1.4.0
         version: 1.4.0
@@ -647,8 +647,8 @@ packages:
     resolution: {integrity: sha512-IHk53BVw6MPMi2Gsn+hCng8rFA3ZmR3Rk7GllxDUW9qFJl/hiSvskn7XldkECapQVkIg/1dHpMAxI9xSTaLLSA==}
     engines: {node: '>=14.0.0'}
 
-  '@sonolus/core@7.8.0':
-    resolution: {integrity: sha512-nKYNjga4VMYDmivhWkfJYWh7rAjIaEhNtQ3W7Uv6wqthrbo9fH6UhGbqVnXfQQr+QQ/N+sjNVgYu3syCapySIw==}
+  '@sonolus/core@7.9.0':
+    resolution: {integrity: sha512-szVeLgfpKWyAUqIZazEHKbz/a6cFvmEiJEyzm/82dDw2TEQDmbp8h2EkXiLn8IqcoI9+VnzKtcnB+CptcUO49w==}
 
   '@tootallnate/once@1.1.2':
     resolution: {integrity: sha512-RbzJvlNzmRq5c3O09UipeuXno4tA1FE6ikOjxZK0tuxVv3412l64l5t1W5pj4+rJq9vpkm/kwiR07aZXnsKPxw==}
@@ -3010,7 +3010,7 @@ snapshots:
       '@smithy/types': 2.12.0
       tslib: 2.6.3
 
-  '@sonolus/core@7.8.0': {}
+  '@sonolus/core@7.9.0': {}
 
   '@tootallnate/once@1.1.2':
     optional: true

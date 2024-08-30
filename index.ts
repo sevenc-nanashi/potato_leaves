@@ -10,6 +10,7 @@ import {
   LevelItem,
   ServerInfo,
   hash,
+  ServerLevelResultInfo,
 } from "@sonolus/core";
 import axios from "axios";
 import fs from "fs";
@@ -116,7 +117,7 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
 
 app.use((req, res, next) => {
   console.log(chalk.blue("i) ") + `${chalk.green(req.method)} ${req.url}`);
-  res.header("Sonolus-Version", "0.8.4");
+  res.header("Sonolus-Version", "0.8.5");
   next();
 });
 
@@ -254,6 +255,12 @@ app.get("/sonolus/levels/:name", async (req, res) => {
     hasCommunity: false,
     leaderboards: [],
   } satisfies ServerItemDetails<LevelItem>);
+});
+
+app.get("/sonolus/levels/result/info", async (req, res) => {
+  res.send({
+    submits: [],
+  } satisfies ServerLevelResultInfo);
 });
 
 app.get("/assets/bgData.json.gz", async (req, res) => {
