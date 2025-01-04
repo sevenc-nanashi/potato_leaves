@@ -117,7 +117,7 @@ const toLevelItem = (level: Level, files: FileSet): LevelItem => {
 
 app.use((req, res, next) => {
   console.log(chalk.blue("i) ") + `${chalk.green(req.method)} ${req.url}`);
-  res.header("Sonolus-Version", "0.8.8");
+  res.header("Sonolus-Version", "0.8.9");
   next();
 });
 
